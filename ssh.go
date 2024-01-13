@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"fyne.io/fyne/v2/widget"
-	"golang.org/x/crypto/ssh"
 	"log"
 	"net"
+	"os"
 	"strconv"
+
+	"fyne.io/fyne/v2/widget"
+	"golang.org/x/crypto/ssh"
 )
 
 type SSHConfigData struct {
@@ -16,6 +18,7 @@ type SSHConfigData struct {
 	Port int    `json:"port,omitempty"`
 	User string `json:"user,omitempty"`
 	Pswd string `json:"pswd,omitempty"`
+	Key  string `json:"key,omitempty"`
 }
 
 type SSHConfigForm struct {
@@ -24,6 +27,7 @@ type SSHConfigForm struct {
 	portEntry *widget.Entry
 	userEntry *widget.Entry
 	pswdEntry *widget.Entry
+	keyEntry  *widget.Entry
 }
 
 type SSHConfig struct {
@@ -62,13 +66,14 @@ func (c *SSHConfig) Form() *widget.Form {
 	portEntry := widget.NewEntry()
 	userEntry := widget.NewEntry()
 	pswdEntry := widget.NewEntry()
+	keyEntry := widget.NewEntry()
 
 	portEntry.Text = "22"
 	portEntry.Validator = func(s string) error {
 		_, err := strconv.Atoi(s)
 		return err
 	}
-	pswdEntry.Password = true
+	//pswdEntry.Password = true
 	data := c.data
 	if data != nil {
 		nameEntry.Text = data.Name
@@ -77,6 +82,7 @@ func (c *SSHConfig) Form() *widget.Form {
 		portEntry.Text = strconv.Itoa(data.Port)
 		userEntry.Text = data.User
 		pswdEntry.Text = data.Pswd
+		keyEntry.Text = data.Key
 	}
 	c.onOk = func() {
 		if c.data == nil {
@@ -87,6 +93,7 @@ func (c *SSHConfig) Form() *widget.Form {
 		c.data.Port, _ = strconv.Atoi(portEntry.Text)
 		c.data.User = userEntry.Text
 		c.data.Pswd = pswdEntry.Text
+		c.data.Key = keyEntry.Text
 	}
 	return widget.NewForm([]*widget.FormItem{
 		widget.NewFormItem("Name", nameEntry),
@@ -94,20 +101,42 @@ func (c *SSHConfig) Form() *widget.Form {
 		widget.NewFormItem("Port", portEntry),
 		widget.NewFormItem("Username", userEntry),
 		widget.NewFormItem("Password", pswdEntry),
+		widget.NewFormItem("Key", keyEntry),
 	}...)
 }
 
 func (c *SSHConfig) OnOk() {
 	c.onOk()
+	//fmt.Println(c.data.Name)
+	/*if c.data.Name != "" {
+		(&Window{}).hostCheck(c.data.Name)
+	}*/
 }
 
 func (c *SSHConfig) Term(win *Window) {
 	conf := c.data
-	cli := ssh.ClientConfig{User: conf.User, Auth: []ssh.AuthMethod{
-		ssh.Password(conf.Pswd),
-	}, HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-		return nil
-	}}
+	var cli ssh.ClientConfig
+	if conf.Key != "" {
+		key, err := os.ReadFile(conf.Key)
+		if err != nil {
+			log.Printf("unable to read private key: %v", err)
+		}
+		signer, err := ssh.ParsePrivateKey(key)
+		if err != nil {
+			log.Printf("unable to parse private key: %v", err)
+		}
+		cli = ssh.ClientConfig{User: conf.User, Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		}, HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		}}
+	} else {
+		cli = ssh.ClientConfig{User: conf.User, Auth: []ssh.AuthMethod{
+			ssh.Password(conf.Pswd),
+		}, HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		}}
+	}
 
 	addr := conf.Host + ":" + strconv.Itoa(conf.Port)
 	conn, err := ssh.Dial("tcp", addr, &cli)
@@ -122,11 +151,12 @@ func (c *SSHConfig) Term(win *Window) {
 		win.showError(err)
 		return
 	}
-	modes := ssh.TerminalModes{
+	/*modes := ssh.TerminalModes{
 		ssh.ECHO:          0,     // disable echoing
 		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
 		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
-	}
+	}*/
+	modes := ssh.TerminalModes{}
 	err = session.RequestPty("xterm-color", 24, 80, modes)
 	if err != nil {
 		log.Println(err)
@@ -164,5 +194,5 @@ func (c *SSHConfig) Term(win *Window) {
 		}
 	}()
 
-	win.AddTermTab(term)
+	win.addTermTab(term)
 }

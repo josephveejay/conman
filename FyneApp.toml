@@ -1,0 +1,8 @@
+Website = "https://example.com"
+
+[Details]
+Icon = "Icon.png"
+Name = "Connection Manager"
+ID = "com.josephveejay.conman"
+Version = "1.0.0"
+Build = 1

@@ -2,11 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"log"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
-	"log"
 )
 
 type Config interface {
@@ -46,24 +47,28 @@ func (w *Window) showCreateConfigDialog() {
 	typeSelect.SetSelectedIndex(0)
 	box := container.NewVBox(typeSelect, sshForm, dockerForm, k8sForm)
 
-	dlg := dialog.NewCustomConfirm(title, "OK", "Cancel", box, func(b bool) {
-		if b {
-			switch typeSelect.Selected {
-			case "SSH":
-				sshConf.OnOk()
-				w.confs = append(w.confs, sshConf)
-			case "Docker":
-				dockerConf.OnOk()
-				w.confs = append(w.confs, dockerConf)
-			case "K8S":
-				k8sConf.OnOk()
-				w.confs = append(w.confs, k8sConf)
-			default:
-				return
+	dlg := dialog.NewCustomConfirm(title, "OK", "Cancel", box,
+		func(b bool) {
+			if b {
+				switch typeSelect.Selected {
+				case "SSH":
+					sshConf.OnOk()
+					if w.hostCheck(sshConf.data.Name) {
+						return
+					}
+					w.confs = append(w.confs, sshConf)
+				case "Docker":
+					dockerConf.OnOk()
+					w.confs = append(w.confs, dockerConf)
+				case "K8S":
+					k8sConf.OnOk()
+					w.confs = append(w.confs, k8sConf)
+				default:
+					return
+				}
+				w.save()
 			}
-			w.save()
-		}
-	}, w.win)
+		}, w.win)
 	dlg.Resize(fyne.Size{Width: 300})
 	dlg.Show()
 }
@@ -119,11 +124,11 @@ func (w *Window) load() {
 
 	}
 
-	cmdJson := w.app.Preferences().String(APP_COMMANDS)
+	/*cmdJson := w.app.Preferences().String(APP_COMMANDS)
 	err = json.Unmarshal([]byte(cmdJson), &w.cmds)
 	if err != nil {
 		log.Println(err)
-	}
+	}*/
 }
 
 func (w *Window) save() {
@@ -140,11 +145,38 @@ func (w *Window) save() {
 	}
 	w.app.Preferences().SetString(APP_SESSIONS, string(confJson))
 
-	cmdJson, err := json.Marshal(w.cmds)
+	/*cmdJson, err := json.Marshal(w.cmds)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	w.app.Preferences().SetString(APP_COMMANDS, string(cmdJson))
+	w.app.Preferences().SetString(APP_COMMANDS, string(cmdJson))*/
 
+}
+
+/*func (w *Window) hostCheck(host string) {
+	fmt.Println(host)
+	w.app.Preferences()
+}*/
+
+func (w *Window) hostCheck(host string) bool {
+	confJson := w.app.Preferences().String(APP_SESSIONS)
+	//fmt.Println(confJson)
+	confArr := []map[string]interface{}{}
+	err := json.Unmarshal([]byte(confJson), &confArr)
+	if err != nil {
+		log.Println(err)
+	}
+	for _, data := range confArr {
+		if v, e := data["name"]; e {
+			if t, ok := v.(string); ok {
+				if t == host {
+					//fmt.Println("host found")
+					return true
+				}
+			}
+		}
+	}
+	//fmt.Println("host not found")
+	return false
 }

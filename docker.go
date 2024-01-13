@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
@@ -124,7 +125,7 @@ func (c *DockerConfig) Term(win *Window) {
 				}
 			}()
 
-			win.AddTermTab(term)
+			win.addTermTab(term)
 			if dlg != nil {
 				dlg.Hide()
 			}

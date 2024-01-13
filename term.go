@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/fyne-io/terminal"
 	"io"
 	"log"
 	"net"
+
+	"github.com/fyne-io/terminal"
 )
 
 type Term struct {

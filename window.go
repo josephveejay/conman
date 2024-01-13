@@ -5,25 +5,27 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/fyne-io/terminal"
 )
 
-const APP_NAME = "Go Shell"
-const APP_KEY = "com.github.tk103331.goshell"
+const APP_NAME = "Connection Manager"
+const APP_KEY = "com.github.josephveejay.conman"
 const APP_SESSIONS = "sessions"
-const APP_COMMANDS = "commands"
 
-var iconMap map[string]fyne.Resource
+//const APP_COMMANDS = "commands"
+
+/*var iconMap map[string]fyne.Resource
 
 func init() {
 	iconMap = make(map[string]fyne.Resource)
 	iconMap["file"] = theme.FileIcon()
 	iconMap["document"] = theme.DocumentIcon()
 	iconMap["computer"] = theme.ComputerIcon()
-}
+}*/
 
 type Window struct {
 	app   fyne.App
@@ -31,12 +33,12 @@ type Window struct {
 	tabs  *container.DocTabs
 	terms map[*container.TabItem]*Term
 	confs []Config
-	cmds  []*Cmd
+	//cmds  []*Cmd
 
-	cmdbar *fyne.Container
+	//cmdbar *fyne.Container
 }
 
-func (w *Window) AddTermTab(tab *Term) {
+func (w *Window) addTermTab(tab *Term) {
 	tabItem := container.TabItem{Text: tab.Name(), Icon: theme.ComputerIcon(), Content: tab.term}
 	tab.AddConfigListener(func(config *terminal.Config) {
 		if len(config.Title) > 0 {
@@ -50,21 +52,21 @@ func (w *Window) AddTermTab(tab *Term) {
 	w.tabs.Select(&tabItem)
 }
 
-func (w *Window) AddConfig(conf *SSHConfig) {
+func (w *Window) addConfig(conf *SSHConfig) {
 	w.confs = append(w.confs, conf)
 	w.save()
 }
 
-func (w *Window) AddCmd(cmd *Cmd) {
+/*func (w *Window) AddCmd(cmd *Cmd) {
 	w.cmds = append(w.cmds, cmd)
 	w.save()
 	icon := iconMap[cmd.Icon]
 	w.cmdbar.Add(widget.NewButtonWithIcon(cmd.Text, icon, func() {
 		w.sendCmd(cmd)
 	}))
-}
+}*/
 
-func (w *Window) RemoveConfig(index int) {
+func (w *Window) removeConfig(index int) {
 	if index < 0 || index > len(w.confs) {
 		return
 	}
@@ -75,7 +77,7 @@ func (w *Window) RemoveConfig(index int) {
 func (w *Window) Run(stop <-chan struct{}) {
 
 	w.app = app.NewWithID(APP_KEY)
-	w.app.Settings().SetTheme(theme.DarkTheme())
+	//w.app.Settings().SetTheme(theme.DarkTheme())
 
 	go func() {
 		defer w.app.Quit()
@@ -85,26 +87,34 @@ func (w *Window) Run(stop <-chan struct{}) {
 	w.load()
 	w.terms = make(map[*container.TabItem]*Term)
 	w.win = w.app.NewWindow(APP_NAME)
-	w.win.Resize(fyne.NewSize(800, 600))
+	w.win.Resize(fyne.NewSize(1000, 800))
 	w.initUI()
 
+	w.win.SetCloseIntercept(func() {
+		w.win.Hide()
+	})
+
 	w.win.ShowAndRun()
+
 }
 
 func (w *Window) initUI() {
-	toolbar := widget.NewToolbar(widget.NewToolbarAction(theme.ComputerIcon(), func() {
-		tab := NewLocalTerm()
-		w.AddTermTab(tab)
-	}), widget.NewToolbarAction(theme.DocumentIcon(), func() {
-		w.showCreateConfigDialog()
-	}), widget.NewToolbarAction(theme.ContentAddIcon(), func() {
-		w.showNewCmdDialog()
-	}),
-		widget.NewToolbarSpacer(), widget.NewToolbarAction(theme.InfoIcon(), func() {
-			w.showAboutDialog()
-		}))
+	toolbar := widget.NewToolbar(widget.NewToolbarAction(theme.ComputerIcon(),
+		func() {
+			tab := NewLocalTerm()
+			w.addTermTab(tab)
+		}), widget.NewToolbarAction(theme.ContentAddIcon(),
+		func() {
+			w.showCreateConfigDialog()
+		}), /*widget.NewToolbarAction(theme.ContentAddIcon(), func() {
+			w.showNewCmdDialog()
+		}),*/
+		widget.NewToolbarSpacer(), widget.NewToolbarAction(theme.InfoIcon(),
+			func() {
+				w.showAboutDialog()
+			}))
 
-	buttons := make([]fyne.CanvasObject, len(w.cmds))
+	/*buttons := make([]fyne.CanvasObject, len(w.cmds))
 	for i, cmd := range w.cmds {
 		if icon, ok := iconMap[cmd.Icon]; ok {
 			buttons[i] = widget.NewButtonWithIcon(cmd.Name, icon, func() {
@@ -116,34 +126,41 @@ func (w *Window) initUI() {
 			})
 		}
 	}
-	w.cmdbar = container.NewHBox(buttons...)
+	w.cmdbar = container.NewHBox(buttons...)*/
 
-	sidebar := widget.NewList(func() int {
-		return len(w.confs)
-	}, func() fyne.CanvasObject {
-		return container.NewHBox(widget.NewLabel(""), layout.NewSpacer(),
-			widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), nil),
-			widget.NewButtonWithIcon("", theme.DeleteIcon(), nil),
-			widget.NewButtonWithIcon("", theme.ComputerIcon(), nil))
-	}, func(id widget.ListItemID, object fyne.CanvasObject) {
-		box := object.(*fyne.Container)
-		label := box.Objects[0].(*widget.Label)
-		edit := box.Objects[2].(*widget.Button)
-		del := box.Objects[3].(*widget.Button)
-		open := box.Objects[4].(*widget.Button)
+	sidebar := widget.NewList(
+		func() int {
+			//log.Println(w.confs)
+			return len(w.confs)
+		},
+		func() fyne.CanvasObject {
+			return container.NewHBox(
+				widget.NewLabel(""), layout.NewSpacer(),
+				widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), nil),
+				widget.NewButtonWithIcon("", theme.DeleteIcon(), nil),
+				widget.NewButtonWithIcon("", theme.MediaPlayIcon(), nil))
+		},
+		func(id widget.ListItemID, object fyne.CanvasObject) {
+			box := object.(*fyne.Container)
+			label := box.Objects[0].(*widget.Label)
+			edit := box.Objects[2].(*widget.Button)
+			del := box.Objects[3].(*widget.Button)
+			open := box.Objects[4].(*widget.Button)
 
-		conf := w.confs[id]
-		label.Text = conf.Name()
-		edit.OnTapped = func() {
-			w.showModifyConfigDialog(conf)
-		}
-		del.OnTapped = func() {
-			w.RemoveConfig(id)
-		}
-		open.OnTapped = func() {
-			conf.Term(w)
-		}
-	})
+			conf := w.confs[id]
+			//label.Text = conf.Name()
+			//log.Println(conf.Name())
+			label.SetText(conf.Name())
+			edit.OnTapped = func() {
+				w.showModifyConfigDialog(conf)
+			}
+			del.OnTapped = func() {
+				w.removeConfig(id)
+			}
+			open.OnTapped = func() {
+				conf.Term(w)
+			}
+		})
 
 	w.tabs = container.NewDocTabs()
 	w.createLocalTermTab()
@@ -155,24 +172,46 @@ func (w *Window) initUI() {
 	center := container.NewHSplit(sidebar, w.tabs)
 	center.Offset = 0.2
 
-	content := container.NewBorder(toolbar, w.cmdbar, nil, nil, center)
+	/*content := container.NewBorder(toolbar, w.cmdbar, nil, nil, center)
+
+	w.win.SetContent(content)*/
+	content := container.NewBorder(toolbar, nil, nil, nil, center)
 
 	w.win.SetContent(content)
+
+	w.app.Preferences().AddChangeListener(
+		func() {
+			//fmt.Println("changed")
+			//w.win.SetContent(content)
+			content.Refresh()
+		})
+
+	if desk, ok := w.app.(desktop.App); ok {
+		m := fyne.NewMenu(APP_NAME,
+			fyne.NewMenuItem("Show", func() {
+				//log.Println("Tapped show")
+				w.win.Show()
+			}))
+		//desk.SetSystemTrayIcon(theme.AccountIcon())
+		desk.SetSystemTrayIcon(resourceIconPng)
+		desk.SetSystemTrayMenu(m)
+
+	}
 }
 
 func (w *Window) showAboutDialog() {
-	dialog.NewInformation(APP_NAME, "GoShell is a simple terminal GUI client, written in Go,via Fyne. ", w.win).Show()
+	dialog.NewInformation(APP_NAME, "Connection Manager is a simple terminal GUI client, written in Go,via Fyne. ", w.win).Show()
 }
 
 func (w *Window) showError(e error) {
 	dialog.ShowError(e, w.win)
 }
 
-func (w *Window) sendCmd(cmd *Cmd) {
+/*func (w *Window) sendCmd(cmd *Cmd) {
 	tabItem := w.tabs.Selected()
 	if tabItem != nil {
 		if term, ok := w.terms[tabItem]; ok {
 			term.Send(cmd.Text)
 		}
 	}
-}
+}*/

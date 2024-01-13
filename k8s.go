@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
@@ -217,7 +218,7 @@ func (c *K8SConfig) Term(win *Window) {
 					}()
 				}
 			})
-			win.AddTermTab(term)
+			win.addTermTab(term)
 		}
 	}, win.win)
 	dlg.Resize(fyne.Size{Width: 400})
