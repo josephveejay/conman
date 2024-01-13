@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 
 	"fyne.io/fyne/v2"
@@ -54,6 +55,8 @@ func (w *Window) showCreateConfigDialog() {
 				case "SSH":
 					sshConf.OnOk()
 					if w.hostCheck(sshConf.data.Name) {
+						//log.Println("Host with same name exists!")
+						w.showError(errors.New("host with same name exists"))
 						return
 					}
 					w.confs = append(w.confs, sshConf)
